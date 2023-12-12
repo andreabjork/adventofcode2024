@@ -1,5 +1,13 @@
 package util
 
+import (
+	"strconv"
+)
+const MaxUint = ^uint(0) 
+const MinUint = 0 
+const MaxInt = int(MaxUint >> 1) 
+const MinInt = -MaxInt - 1
+
 func Max(x int, y int) int {
 	if x >= y {
 	return x
@@ -35,4 +43,26 @@ func Pow(x int, n int) int {
 		val *= x
 	}
 	return val
+}
+
+func AsInts(strs []string) []int {
+	var ints []int = []int{}
+	for _, s := range strs {
+		i, err := strconv.Atoi(s)
+		if err == nil {
+			ints = append(ints, i)
+		}
+	}
+	return ints
+}
+
+func AsFloats(strs []string) []float64 {
+	var floats []float64 = []float64{}
+	for _, s := range strs {
+		i, err := strconv.Atoi(s)
+		if err == nil {
+			floats = append(floats, float64(i))
+		}
+	}
+	return floats
 }

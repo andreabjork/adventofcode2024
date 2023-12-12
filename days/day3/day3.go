@@ -33,12 +33,11 @@ type Gear struct {
 func partsAndGears(inputFile string) (int, []*Gear) { 
   ls := util.Reader(inputFile)
 
-  var marked map[int]map[int][]*Gear = make(map[int]map[int][]*Gear) // marked[i][j] = true if (i,j) is adjacent to a symbol
+  var marked map[int]map[int][]*Gear = make(map[int]map[int][]*Gear) // marked[i][j] = list of gears adjacent to (i,j)
   var gears []*Gear = []*Gear{}
   var parts []*Part = []*Part{} 
 
   r, sz, err := ls.ReadRune()
-  
   var i, j int = 0, 0
   var num []rune
   for err != io.EOF && sz > 0 {
