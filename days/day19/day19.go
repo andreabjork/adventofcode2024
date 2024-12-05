@@ -1,14 +1,15 @@
-package day8
+package day19
 
 import (
 	"fmt"
 )
 
-func Day8(inputFile string, part int) {
+func Day19(inputFile string, part int) {
 	if part == 0 {
 		fmt.Println("Not implmenented.")
 	} else {
 		fmt.Println("Not implmenented.")
 	}
 }
+
 
