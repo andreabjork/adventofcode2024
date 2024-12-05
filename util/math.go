@@ -37,6 +37,25 @@ func Sum(arr []int) int {
 	return sum
 }
 
+func Sign(i int) int {
+	if i > 0 {
+		return 1
+	} else if i < 0 {
+		return -1
+	} else {
+		return 0
+	}
+}
+
+func CopySlice(slice []string) []string {
+	newSlice := []string{}
+	for _, s := range slice {
+		newSlice = append(newSlice, s)	
+	}
+
+	return newSlice
+}
+
 func Pow(x int, n int) int {
 	val := 1
 	for i := 0; i < n; i++ {

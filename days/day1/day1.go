@@ -3,85 +3,65 @@ package day1
 import (
 	"adventofcode/m/v2/util"
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 )
 
 func Day1(inputFile string, part int) {
 	if part == 0 {
-		fmt.Printf("Calibration sum: %d\n", calibrate(inputFile, false))
+		fmt.Printf("List distance: %d\n", distance(inputFile))
 	} else {
-		fmt.Printf("Calibration sum: %d\n", calibrate(inputFile, true))
+		fmt.Printf("List similarity: %d\n", similarity(inputFile))
 	}
 }
 
-var lookup = map[string]rune{
-	"one": '1',
-	"two": '2',
-	"three": '3',
-	"four": '4',
-	"five": '5',
-	"six": '6',
-	"seven": '7',
-	"eight": '8',
-	"nine": '9',
-}
+func distance(inputFile string) int {
+	A, B, _, _ := parse(inputFile)
 
-func calibrate(inputFile string, allowWords bool) int {
-	ls := util.LineScanner(inputFile)
-	line, ok := util.Read(ls)
+	sort.Slice(A, func(i, j int) bool {
+		return A[i] <= A[j]	
+	})
+
+	sort.Slice(B, func(i, j int) bool {
+		return B[i] <= B[j]	
+	})
 
 	sum := 0
-	for ok {
-		var first, last rune
-		first = 'u'
-		runes := []rune(line)
-		for i, r := range runes {
-			// Check if integer
-			_, err := strconv.Atoi(string(r))
-			if err == nil && first == 'u' {
-				first = r
-			}
-
-			if err == nil {
-				last = r
-				continue
-			}
-
-			if allowWords {
-				// Check 3-size window
-				if r, ok := lookup[string(runes[i:util.Min(i+3, len(runes))])]; ok {
-					if first == 'u' {
-						first = r
-					}	
-					last = r
-					continue
-				}
-				// Check 4-size window
-				if r, ok := lookup[string(runes[i:util.Min(i+4, len(runes))])]; ok {
-					if first == 'u' {
-						first = r
-					}	
-					last = r
-					continue
-				}
-				// Check 5-size window
-				if r, ok := lookup[string(runes[i:util.Min(i+5, len(runes))])]; ok {
-					if first == 'u' {
-						first = r
-					}	
-					last = r
-					continue
-				}
-			}			
-		}
-
-		val, err := strconv.Atoi(string([]rune{first, last}))
-		if err == nil {
-			sum += val
-		}
-
-		line, ok = util.Read(ls)
+	for i := 0; i < len(A); i++ {
+		sum += util.Abs(A[i]-B[i])
 	}
-
 	return sum
 }
+
+func similarity(inputFile string) int {
+	_, _, xA, xB := parse(inputFile)
+
+	sum := 0
+	for i, _ := range xA {
+		sum += i*xA[i]*xB[i]
+	}
+	return sum
+}
+
+func parse(inputFile string) ([]int, []int, map[int]int, map[int]int) {
+	ls := util.LineScanner(inputFile)
+	line, ok := util.Read(ls)
+	var parts []string
+
+	var A, B []int = []int{}, []int{}
+	var mapA, mapB map[int]int = make(map[int]int), make(map[int]int)
+	for ok {
+		parts = strings.Split(line, "   ")
+		a, _ := strconv.Atoi(parts[0])
+		b, _ := strconv.Atoi(parts[1])
+		A = append(A, a)
+		B = append(B, b)
+		mapA[a]++ 
+		mapB[b]++
+		line, ok = util.Read(ls)
+	}
+	return A, B, mapA, mapB
+}
+
+

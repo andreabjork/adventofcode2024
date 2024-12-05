@@ -3,86 +3,83 @@ package day2
 import (
 	"adventofcode/m/v2/util"
 	"fmt"
-	"regexp"
 	"strings"
 	"strconv"
 )
 
 func Day2(inputFile string, part int) {
 	if part == 0 {
-		fmt.Printf("Sum of IDs: %d\n", validateGames(inputFile))
+		fmt.Printf("Safe reports: %d\n", safeReports(inputFile, 0))
 	} else {
-		fmt.Printf("Power of Minimums: %d\n", powerOfGames(inputFile))
+		fmt.Printf("Safe reports, dampened: %d\n", safeReports(inputFile, 1))
 	}
 }
 
-func validateGames(inputFile string) int {
+func safeReports(inputFile string, threshold int) int {
 	ls := util.LineScanner(inputFile)
-	line, ok := util.Read(ls)
-
-	bag := map[string]int{"red": 12, "green": 13, "blue": 14}
-	parseGame := regexp.MustCompile(`Game (\d+):(( \d+ (blue|red|green),*)*;*)*`)
-	parseRounds := regexp.MustCompile(`(\d+)\s?(blue|red|green)+,*\s?(\d*)\s?(blue|red|green)*,*\s?(\d*)\s?(blue|red|green)*`)
-	sum := 0
+	report, ok := util.Read(ls)
+	var levels []string
+	var numSafe int = 0
 	for ok {
-		game := parseGame.FindAllStringSubmatch(line, 10)
-		id, _ := strconv.Atoi(game[0][1])
-
-		invalid := false
-		for _, round := range strings.Split(game[0][0], ";") {
-			actions := parseRounds.FindAllStringSubmatch(round, 10)
-		  for i := 1; i < len(actions[0]); i+=2 {
-				count, _ := strconv.Atoi(actions[0][i])
-				color := actions[0][i+1]
-			  	
-				if count > bag[color] {
-					invalid = true
-					break	
-				}
-			}	
-
-			if invalid {
-				break
-			} 
+		levels = strings.Split(report, " ")
+		if isSafe(levels, threshold) {
+			numSafe++
 		}
-
-		if !invalid {
-			sum += id 		
-		}
-
-		line, ok = util.Read(ls)
+		report, ok = util.Read(ls)
 	}
 
-	return sum
+	return numSafe
+} 
+
+// 0 <= idx <= len(slice)
+// Returns true if level at idx does not break safety requirements
+func safeAtIndex(slice []string, idx int) bool {
+	safe := true
+	x, _ := strconv.Atoi(slice[idx])	
+	var a, b int
+
+	if idx > 0 {
+		a, _ = strconv.Atoi(slice[idx-1])
+		safe = util.Abs(a-x) >= 1 && util.Abs(a-x) <= 3 
+	}
+	
+	if idx+1 < len(slice) {
+		b, _ = strconv.Atoi(slice[idx+1])
+		safe = safe && util.Abs(x-b) >= 1 && util.Abs(x-b) <= 3
+	}
+
+	if idx > 0 && idx+1 < len(slice) {
+		safe = safe && util.Sign(a-x) == util.Sign(x-b) && util.Sign(a-x) != 0
+	}
+
+	return safe
 }
 
-func powerOfGames(inputFile string) int {
-	ls := util.LineScanner(inputFile)
-	line, ok := util.Read(ls)
-
-	parseGame := regexp.MustCompile(`Game (\d+):(( \d+ (blue|red|green),*)*;*)*`)
-	parseRounds := regexp.MustCompile(`(\d+)\s?(blue|red|green)+,*\s?(\d*)\s?(blue|red|green)*,*\s?(\d*)\s?(blue|red|green)*`)
-	sum := 0
-	for ok {
-		game := parseGame.FindAllStringSubmatch(line, 10)
-
-		minBag := map[string]int{"red": 0, "green": 0, "blue": 0}
-		for _, round := range strings.Split(game[0][0], ";") {
-			actions := parseRounds.FindAllStringSubmatch(round, 10)
-		  for i := 1; i < len(actions[0]); i+=2 {
-				count, _ := strconv.Atoi(actions[0][i])
-				color := actions[0][i+1]
-			  	
-				if count > minBag[color] {
-					minBag[color] = count
-				}
-			}	
+func isSafe(slice []string, threshold int) bool {
+	//fmt.Printf("Checking %s // ", slice)
+	safe := true
+	for i := 0; i < len(slice); i++ {
+		safe = safe && safeAtIndex(slice, i)
+		if !safe && threshold > 0 {
+			// we can try to remove the unsafe level and check again	
+			threshold--
+			return isSafe(remove(slice, i), threshold) || 
+			isSafe(remove(slice, i+1), threshold) ||
+			(i > 0 && isSafe(remove(slice, i-1), threshold))
+		} else if !safe {
+			break
 		}
-
-		sum += minBag["red"]*minBag["green"]*minBag["blue"]
-
-		line, ok = util.Read(ls)
 	}
+	return safe
+}
 
-	return sum
+func remove(slice []string, idx int) []string {
+	if idx == 0 {
+		return slice[idx+1:]
+	} else if idx == len(slice)-1 {
+		return slice[:idx]
+	} else {
+		newSlice := util.CopySlice(slice[:idx])
+		return append(newSlice, slice[idx+1:]...)
+	}
 }
