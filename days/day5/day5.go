@@ -37,7 +37,6 @@ func middles(inputFile string, fix bool) int {
 		rules[a] = append(rules[a], b)
 		line, ok = util.Read(ls)
 	}
-	
 
 	// Create linked list
 	line, ok = util.Read(ls)
