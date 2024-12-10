@@ -90,8 +90,9 @@ func (p *Point) addTo(i, j int, t *Terrain) [][]*Point {
 	all := [][]*Point{}
 	if i >= 0 && i < len(t.g) && j >= 0 && j < len(t.g[i]) && 
 	t.g[i][j].val == p.val+1 {
+		var pp []*Point
 		for _, q := range t.g[i][j].getPaths(t) {
-			pp  := append([]*Point{p}, q...)
+			pp  = append([]*Point{p}, q...)
 			all = append(all, pp)
 		}
 	}
