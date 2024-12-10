@@ -39,15 +39,14 @@ func solve(inputFile string) (int, int) {
 	sumScores := 0
 	sumRatings := 0
 	for _, th := range trailHeads {
-		// For each trail head, keep track of
-		// the end nodes they reach and their score
 		reachable := make(map[*Point]int)
-		score := 0
-		rating := 0
+		score := 0 // +1 for each unique peak we can reach
+		rating := 0 // +1 for each unique path to a peak
+		var peak *Point
 		for _, path := range th.getPaths(t) {
-			node9 := path[len(path)-1]
-			reachable[node9]++
-			if reachable[node9] == 1 {
+			peak = path[len(path)-1]
+			reachable[peak]++
+			if reachable[peak] == 1 {
 				score++
 			}
 			rating++
@@ -55,8 +54,6 @@ func solve(inputFile string) (int, int) {
 		
 		sumScores += score
 		sumRatings += rating
-		fmt.Println(score)
-		
 	}
 
 	return sumScores, sumRatings
@@ -102,6 +99,7 @@ func (p *Point) addTo(i, j int, t *Terrain) [][]*Point {
 	return all
 }
 
+// Returns all unique paths to all peaks in the terrain
 func (p *Point) getPaths(t *Terrain) [][]*Point {
 	if p.val == 9 {
 		p.paths = [][]*Point{{p}}
