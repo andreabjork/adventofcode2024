@@ -22,7 +22,7 @@ func solve(inputFile string, blinks int) int {
 	// Initialize stones, which only ever contains the input and no additional stones
 	stones := strings.Split(line, " ")
 
-	// dp[b][x] = n if stone with value 'x' becomes 'n' stones in 'b' blinks
+	// dp.mem[b][x] = n if stone with value 'x' becomes 'n' stones in 'b' blinks
 	count := 0
 	dp := &DP{make(map[int]map[string]int)}
 	for _, stone := range stones {
