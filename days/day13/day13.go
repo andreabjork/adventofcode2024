@@ -84,7 +84,6 @@ func eqSolver(A, B, C *Vec) (int, int) {
 	// =>
 	// m = (A_2*C_1 - A_1*C_2) / (A_2*B_1 - A_1*B_2)
 	// n = (C_1 - m*B_1)/A_1
-
 	var n, m int
 	div := A.y * B.x - A.x*B.y 
 	if div == 0 || A.x == 0 || A.y == 0 {
