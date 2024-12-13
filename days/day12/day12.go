@@ -138,36 +138,31 @@ func (g *Garden) has(i, j int, plant rune, r *Region) bool {
 }
 
 func (g *Garden) deltaForOneCorner(A, B, C bool) int {
-	// When adding a new plant [+] we will consider every corner area of 4 plants 
-	// ([+] and the 3 possible neighbours at one corner) and determine whether any
-	// corners get added or covered from this addition. 
-	// The delta in number of corners is the same as the delta in number of sides 
-	//
-	// Imagine we add
+	// When adding a new plant [+] we will consider the impact of adding that plant
+	// in the number of corners that get added or subtracted from the total.
+	// 
+	// In order to compute this, we will consider every single corner of that plot
+	// individually, that is if we add
 	//
 	// a  b  c
 	// d [+] f 
 	// g  h  i
+	// then we consider separately
 	//
-	// Where a, b, ... i may be a plant or it may be empty / a different region.
-	//
-	// We will then consider the regions
-	// 
 	// a  b    b  c   d [+]  [+] f
 	// d [+]  [+] f   g  h    h  i
+	// where a, b, ... i can be any of {plant / empty / a different region / an edge }
 	// 
-	// all separately and tally up the number of corners added/covered.
-	//
-	// For the BOTTOM RIGHT corner, we see that the following applies
-	//
+	// For a single corner, these are _ALL_ the possibilities in corner delta
+	// from adding the plant [+]:
 	// 
-	// +1 corner added:
 	// [+] -   [+] -    [+] -  [+] #   
 	//  -  -    -  #     #  #   -  # 
+	// -------------------------------> +1 corner added
 	//
-	// -1 corner added:
 	// [+] #   [+] -  [+] #  [+] #
 	//  -  -    #  -   #  #   #  -
+	// -------------------------------> -1 corner added
 	//	
 	// These cases also cover adding [+] along either edge or in a corner
 	// so long as A, B, C == false for any adjacent out of range.
