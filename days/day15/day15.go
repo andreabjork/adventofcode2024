@@ -2,9 +2,8 @@ package day15
 
 import (
 	"adventofcode/m/v2/util"
-	"fmt"
 	"bufio"
-	//reflect"
+	"fmt"
 )
 
 func Day15(inputFile string, part int) {
@@ -26,31 +25,24 @@ func solve(inputFile string, double bool) int {
 		w, robot, boxes = doubleWarehouse(ls)
 	}
 
-	w.print()
-
 	line, ok := util.Read(ls)
 	for ok {
-		//fmt.Printf("Number of moves: %d\n", len(line))
 		for _, dir := range line {
-			//fmt.Printf("----------------------: Robot moves %s\n", string(dir))
-			//util.Wait()
 			switch dir {
 			case '^':
-				w.move(robot, -1, 0, false)
+				w.moveIfAble(robot, -1, 0, false)
 			case '<':
-				w.move(robot, 0, -1, false)
+				w.moveIfAble(robot, 0, -1, false)
 			case '>':
-				w.move(robot, 0, 1, false)
+				w.moveIfAble(robot, 0, 1, false)
 			case 'v':
-				w.move(robot, 1, 0, false)
+				w.moveIfAble(robot, 1, 0, false)
 			}
-
-		  w.print()
 		}
 
 		line, ok = util.Read(ls)
 	}
-		
+	
 	sum := 0
 	for _, b := range boxes {
 		sum += b.gps()
@@ -144,65 +136,84 @@ func doubleWarehouse(ls *bufio.Scanner) (*Warehouse, *Robot, []IUnit) {
 func (w *Warehouse) print() {
 	for i := 0; i < len(w.grid); i++ {
 		for j := 0; j < len(w.grid[i]); j++ {
-			fmt.Printf(string(w.grid[i][j].symbol()))
+			if w.grid[i][j].symbol() == '@' {
+				var Boldred = "\033[31;1m"
+				var Reset = "\033[0m"  
+				fmt.Printf(Boldred+"@"+Reset)	
+			} else if w.grid[i][j].symbol() == '[' || w.grid[i][j].symbol() == ']' {
+				var BoldBlue = "\033[34;1m"
+				var Reset = "\033[0m"  
+				fmt.Printf(BoldBlue+string(w.grid[i][j].symbol())+Reset)	
+			} else {
+				fmt.Printf(string(w.grid[i][j].symbol()))
+			}
 		}
 		fmt.Printf("\n")
 	}
 	fmt.Println()
 }
 
-func (w *Warehouse) printDouble() {
-	for i := 0; i < len(w.grid); i++ {
-		for j := 0; j < len(w.grid[i]); j++ {
-			fmt.Printf(string(w.grid[i][j].symbol()))
-		}
-		fmt.Printf("\n")
-	}
-	fmt.Println()
+func (w *Warehouse) inWarehouse(i, j int) bool {
+	return i >= 0 && j >= 0 && i < len(w.grid) && j < len(w.grid[i]) 
 }
 
-func (w *Warehouse) move(u IUnit, dX, dY int, pushed bool) {
-	//fmt.Printf("Move %s (%d,%d) by (%d,%d)\n", reflect.TypeOf(u), u.x(), u.y(), dX, dY)
-	if _, ok := u.(*Wall); ok {
-		// Walls push back to ensure we don't move something into a wall
-		//fmt.Printf("Hit wall %d,%d: wall pushes back on %d,%d in direction %d,%d\n", u.x(), u.y(), u.x()-dX, u.y()-dY, -dX, -dY)
-		w.move(w.grid[u.x()][u.y()], -dX, -dY, true)
-		w.grid[u.x()][u.y()] = u
-	} else if u.x()+dX >= 0 && u.x()+dX < len(w.grid) &&
-		u.y()+dY >= 0 && u.y()+dY < len(w.grid[u.x()]) {
-		if !pushed {
-			//fmt.Printf("Robot moved: setting original position (%d,%d) to empty\n", u.x(), u.y())
-			w.grid[u.x()][u.y()] = &Empty{&Unit{u.x(), u.y()}}
-		} 
-		var left, right IUnit
-		next := w.grid[u.x()+dX][u.y() + dY]
-		_, isLeft := u.(*LBox)
-		_, isRight := u.(*RBox)
-		if dX != 0 && isLeft && pushed {
-			right = w.grid[u.x()][u.y()+1]
-		} else if dX != 0 && isRight && pushed {
-			left = w.grid[u.x()][u.y()-1]
+func (w *Warehouse) isBlocked(u IUnit, dX, dY int, pushed bool) bool {
+	if w.inWarehouse(u.x()+dX, u.y()+dY) {
+		next := w.grid[u.x()+dX][u.y()+dY]
+		if _, ok := next.(*LBox); ok && pushed && dX != 0 {
+			right := w.grid[u.x()+dX][u.y()+dY+1]
+			return w.isBlocked(next, dX, dY, true) || w.isBlocked(right, dX, dY, true)
+		} else if _, ok := next.(*RBox); ok && pushed && dX != 0 {
+			left := w.grid[u.x()+dX][u.y()+dY-1]
+			return w.isBlocked(next, dX, dY, true) || w.isBlocked(left, dX, dY, true)
+		} else if _, ok := next.(*Empty); ok {
+			return false
+		} else if _, ok := next.(*Wall); ok {
+			return true
+		} else { 
+			return w.isBlocked(next, dX, dY, true)
 		}
-		// move this unit
-		u.setX(u.x()+dX)
-		u.setY(u.y()+dY)
-		w.grid[u.x()][u.y()] = u
-		
-		// Continue moving the lot, including walls
-		if _, ok := next.(*Empty); !ok {
-			//fmt.Printf("Moving next non-empty element\n")
-			w.move(next, dX, dY, true)
-		}
-		if left != nil {
-			w.move(left, dX, dY, false)
-		} else if right != nil {
-			w.move(right, dX, dY, false)
-		}
-		// Move the other half of the box when applicable
-		 
-		
+	} 
+
+	return true
+}
+
+
+func (w *Warehouse) moveIfAble(u IUnit, dX, dY int, pushed bool) {
+	if w.isBlocked(u, dX, dY, true) {
+		return
 	} else {
-		fmt.Printf("Oh no what happened here!?")
+		w.move(u, dX, dY, pushed)
+	}
+
+}
+
+// Precondition: the unit u is not blocked
+func (w *Warehouse) move(u IUnit, dX, dY int, pushed bool) {
+	if !pushed {
+		w.grid[u.x()][u.y()] = &Empty{&Unit{u.x(), u.y()}}
+	} 
+	var left, right IUnit
+	next := w.grid[u.x()+dX][u.y() + dY]
+	_, isLeft := u.(*LBox)
+	_, isRight := u.(*RBox)
+	if dX != 0 && isLeft && pushed {
+		right = w.grid[u.x()][u.y()+1]
+	} else if dX != 0 && isRight && pushed {
+		left = w.grid[u.x()][u.y()-1]
+	}
+	// move this unit
+	u.setX(u.x()+dX)
+	u.setY(u.y()+dY)
+	w.grid[u.x()][u.y()] = u
+	
+	if _, ok := next.(*Empty); !ok {
+		w.move(next, dX, dY, true)
+	}
+	if left != nil {
+		w.move(left, dX, dY, false)
+	} else if right != nil {
+		w.move(right, dX, dY, false)
 	}
 }
 
@@ -214,6 +225,10 @@ type Warehouse struct {
 	grid map[int]map[int]IUnit
 }
 
+/**
+* This solution plays with embedded structs (just to understand how they work)
+* so it's overly complex and would be more neatly done with enums.
+**/ 
 type IUnit interface {
 	x() int 
 	y() int
