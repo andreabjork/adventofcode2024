@@ -3,21 +3,63 @@ package day15
 import (
 	"adventofcode/m/v2/util"
 	"fmt"
-	//"reflect"
+	"bufio"
+	//reflect"
 )
 
 func Day15(inputFile string, part int) {
 	if part == 0 {
-		fmt.Printf("GPS: %d\n", solve(inputFile))
+		fmt.Printf("GPS: %d\n", solve(inputFile, false))
 	} else {
-		fmt.Println("Not implmenented.")
+		fmt.Printf("GPS: %d\n", solve(inputFile, true))
 	}
 }
 
-func solve(inputFile string) int {
+func solve(inputFile string, double bool) int {
 	ls := util.LineScanner(inputFile)
-	line, ok := util.Read(ls)
+	var w *Warehouse
+	var robot *Robot
+	var boxes []IUnit
+	if !double {
+		w, robot, boxes = singleWarehouse(ls)
+	} else {
+		w, robot, boxes = doubleWarehouse(ls)
+	}
 
+	w.print()
+
+	line, ok := util.Read(ls)
+	for ok {
+		//fmt.Printf("Number of moves: %d\n", len(line))
+		for _, dir := range line {
+			//fmt.Printf("----------------------: Robot moves %s\n", string(dir))
+			//util.Wait()
+			switch dir {
+			case '^':
+				w.move(robot, -1, 0, false)
+			case '<':
+				w.move(robot, 0, -1, false)
+			case '>':
+				w.move(robot, 0, 1, false)
+			case 'v':
+				w.move(robot, 1, 0, false)
+			}
+
+		  w.print()
+		}
+
+		line, ok = util.Read(ls)
+	}
+		
+	sum := 0
+	for _, b := range boxes {
+		sum += b.gps()
+	}
+	return sum
+}
+
+func singleWarehouse(ls *bufio.Scanner) (*Warehouse, *Robot, []IUnit) {
+	line, ok := util.Read(ls)
 	w := &Warehouse{make(map[int]map[int]IUnit)}
 	var robot *Robot
 	boxes := []IUnit{}
@@ -53,38 +95,52 @@ func solve(inputFile string) int {
 		}
 	}
 
-	w.print()
-
-	line, ok = util.Read(ls)
-	for ok {
-		//fmt.Printf("Number of moves: %d\n", len(line))
-		for _, dir := range line {
-			//fmt.Printf("----------------------: Robot moves %s\n", string(dir))
-			//util.Wait()
-			switch dir {
-			case '^':
-				w.move(robot, -1, 0, false)
-			case '<':
-				w.move(robot, 0, -1, false)
-			case '>':
-				w.move(robot, 0, 1, false)
-			case 'v':
-				w.move(robot, 1, 0, false)
-			}
-
-		  //w.print()
-		}
-
-		line, ok = util.Read(ls)
-	}
-		
-	sum := 0
-	for _, b := range boxes {
-		sum += b.gps()
-	}
-	return sum
+	return w, robot, boxes
 }
 
+func doubleWarehouse(ls *bufio.Scanner) (*Warehouse, *Robot, []IUnit) {
+	line, ok := util.Read(ls)
+	w := &Warehouse{make(map[int]map[int]IUnit)}
+	var robot *Robot
+	boxes := []IUnit{}
+	i, j := 0, 0
+	for ok {
+		j = 0
+		for _, r := range line {
+			if w.grid[i] == nil {
+				w.grid[i] = make(map[int]IUnit)
+			}
+
+			switch r {
+			case '#':
+				w.grid[i][j] = &Wall{&Unit{i,j}}
+				w.grid[i][j+1] = &Wall{&Unit{i,j}}
+			case 'O':
+				w.grid[i][j] = &LBox{&Unit{i,j}}
+				w.grid[i][j+1] = &RBox{&Unit{i,j+1}}
+				boxes = append(boxes, w.grid[i][j])
+			case '@':
+				robot = &Robot{&Unit{i,j}}
+				w.grid[i][j] = robot
+				w.grid[i][j+1] = &Empty{&Unit{i,j}}
+			case '.':
+				w.grid[i][j] = &Empty{&Unit{i,j}}
+				w.grid[i][j+1] = &Empty{&Unit{i,j}}
+			default:
+				panic("unexpected input")
+			}
+			j+=2
+		}
+
+		i++
+		line, ok = util.Read(ls)
+		if line == "" {
+			break
+		}
+	}
+
+	return w, robot, boxes
+}
 func (w *Warehouse) print() {
 	for i := 0; i < len(w.grid); i++ {
 		for j := 0; j < len(w.grid[i]); j++ {
@@ -114,11 +170,19 @@ func (w *Warehouse) move(u IUnit, dX, dY int, pushed bool) {
 		w.grid[u.x()][u.y()] = u
 	} else if u.x()+dX >= 0 && u.x()+dX < len(w.grid) &&
 		u.y()+dY >= 0 && u.y()+dY < len(w.grid[u.x()]) {
-		if _, ok := u.(*Robot); ok && !pushed {
+		if !pushed {
 			//fmt.Printf("Robot moved: setting original position (%d,%d) to empty\n", u.x(), u.y())
 			w.grid[u.x()][u.y()] = &Empty{&Unit{u.x(), u.y()}}
 		} 
+		var left, right IUnit
 		next := w.grid[u.x()+dX][u.y() + dY]
+		_, isLeft := u.(*LBox)
+		_, isRight := u.(*RBox)
+		if dX != 0 && isLeft && pushed {
+			right = w.grid[u.x()][u.y()+1]
+		} else if dX != 0 && isRight && pushed {
+			left = w.grid[u.x()][u.y()-1]
+		}
 		// move this unit
 		u.setX(u.x()+dX)
 		u.setY(u.y()+dY)
@@ -128,7 +192,15 @@ func (w *Warehouse) move(u IUnit, dX, dY int, pushed bool) {
 		if _, ok := next.(*Empty); !ok {
 			//fmt.Printf("Moving next non-empty element\n")
 			w.move(next, dX, dY, true)
-		} 
+		}
+		if left != nil {
+			w.move(left, dX, dY, false)
+		} else if right != nil {
+			w.move(right, dX, dY, false)
+		}
+		// Move the other half of the box when applicable
+		 
+		
 	} else {
 		fmt.Printf("Oh no what happened here!?")
 	}
@@ -184,9 +256,19 @@ func (e Empty) symbol() rune {
 func (b Box) symbol() rune {
 	return 'O'
 }
+
 func (r Robot) symbol() rune {
 	return '@'
 }
+
+func (lb LBox) symbol() rune {
+	return '['
+}
+
+func (rb RBox) symbol() rune {
+	return ']'
+}
+
 type Empty struct {
 	*Unit
 }
@@ -196,5 +278,13 @@ type Robot struct {
 }
 
 type Box struct {
+	*Unit
+}
+
+type LBox struct {
+	*Unit
+}
+
+type RBox struct {
 	*Unit
 }
