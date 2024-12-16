@@ -6,19 +6,17 @@ import (
 	"strings"
 	"strconv"
 	"time"
-	"os"
-	"os/exec"
 )
 
 func Day14(inputFile string, part int) {
 	if part == 0 {
-		fmt.Printf("Safety factor: %d\n", solve(inputFile, 103, 101))
+		fmt.Printf("Safety factor: %d\n", solve(inputFile, 103, 101, false))
 	} else {
-		fmt.Printf("Safety factor: %d\n", solve(inputFile, 103, 101))
+		fmt.Printf("Safety factor: %d\n", solve(inputFile, 103, 101, true))
 	}
 }
 
-func solve(inputFile string, height, width int) int {
+func solve(inputFile string, height, width int, xmasTree bool) int {
 	ls := util.LineScanner(inputFile)
 	line, ok := util.Read(ls)
 
@@ -39,34 +37,40 @@ func solve(inputFile string, height, width int) int {
 
 		line, ok = util.Read(ls)
 	}
-	
-	//testRobot := &Robot{2,4,2,-3}
-	//fmt.Printf("%+v\n", testRobot.atTime(5, height, width))
-	//if true {
-	//	return 0
-	//}
-	t := 100
-	for _, robot := range robots {
-		g.add(robot.atTime(t, height, width))	
-	}
 
-	g.print()
-
-	t = 10000
-	for i := 0; i < t; i++ {
-		g = NewGrid(height, width)
+	if !xmasTree {
+		t := 100
 		for _, robot := range robots {
-			g.add(robot.atTime(t, height, width))
+			g.add(robot.atTime(t, height, width))	
 		}
-		g.print()
-    cmd := exec.Command(`printf '\33c\e[3J'`) // clears the scrollback buffer as well as the screen.
-    cmd.Stdout = os.Stdout
-    cmd.Run()
-		time.Sleep(300*time.Microsecond)
+		return g.safetyFactor()
+	} else {
+		allGrids := []*Grid{}
+		t := 11000 // max 103*101 iterations
+		for i := 0; i < t; i++ {
+			gg := NewGrid(height, width)
+			for _, robot := range robots {
+				gg.add(robot.atTime(i, height, width))
+			}
+
+			allGrids = append(allGrids, gg)
+		}
+
+		minSafety := allGrids[0].safetyFactor() 
+		for i, gg := range allGrids {
+			if s := gg.safetyFactor(); s < minSafety {
+				minSafety = s
+				fmt.Print("\033[H\033[2J")
+				gg.print()                      		
+				fmt.Println(i)                  		
+				time.Sleep(400*time.Millisecond)		
+			}
+		}
 	}
+	
 
-
-	return g.safetyFactor()
+	// Found by watching the output above print out small-safety factor configurations
+	return 7132
 }
 
 type Robot struct {
@@ -75,16 +79,16 @@ type Robot struct {
 }
 
 func (r *Robot) atTime(t, height, width int) *Robot {
-	r.x = (r.x+t*r.vX) % width  
-	r.y = (r.y+t*r.vY) % height
+	rx := (r.x+t*r.vX) % width  
+	ry := (r.y+t*r.vY) % height
 
-	if r.x < 0 {
-		r.x = (r.x + (util.Abs(r.x)%width)*width)%width
+	if rx < 0 {
+		rx = (rx + (util.Abs(rx)%width)*width)%width
 	} 
-	if r.y < 0 {
-		r.y = (r.y + (util.Abs(r.y)%height)*height)%height
+	if ry < 0 {
+		ry = (ry + (util.Abs(ry)%height)*height)%height
 	}
-	return r
+	return &Robot{rx, ry, r.vX, r.vY}
 }
 
 type Grid struct {
@@ -153,7 +157,7 @@ func (g *Grid) print() {
 	j_center := len(g.g[0])/2
 	//fmt.Printf("Height is %d, middle is %d\n", len(g.g), i_center)
 	//fmt.Printf("Width is %d, middle is %d\n", len(g.g[0]), j_center)
-	for i := 0; i < len(g.g); i++ {
+	for i := 0; i < len(g.g)/2; i++ {
 		if i == i_center {
 			fmt.Println()
 			continue
