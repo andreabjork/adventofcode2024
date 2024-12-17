@@ -62,3 +62,7 @@ func Read(scanner *bufio.Scanner) (string, bool) {
 	}
 	return scanner.Text(), hasNext
 }
+
+func Wait() {
+  bufio.NewReader(os.Stdin).ReadBytes('\n') 
+}
