@@ -38,7 +38,7 @@ func runProgram(inputFile string) string {
 
 	c := &Computer{A, B, C, program, 0, "", nil}
 	c.initialize()
-	c.run()
+	c.run("")
 	
 	return c.strip
 }
@@ -60,7 +60,7 @@ func (c *Computer) status() {
 		fmt.Printf("%d ", v)
 	}
 	fmt.Printf("\n")
-	for i, _ := range c.program {
+	for i  := range c.program {
 		if i == c.pointer {
 			fmt.Printf("^ ")
 		} else if c.pointer >= len(c.program) {
@@ -75,17 +75,23 @@ func (c *Computer) status() {
 	fmt.Printf("Strip: %s\n", c.strip)
 }
 
-func (c *Computer) run() {
+func (c *Computer) run(expect string) bool {
 	if DEBUG {
 		c.status()
 		time.Sleep(3*time.Second)
 	}
 
 	if c.pointer >= len(c.program) {
-		return
+		return true
 	}
 	c.instruction[c.program[c.pointer]](c.program[c.pointer+1])
-	c.run()
+	
+	if expect != "" {
+		if !strings.HasPrefix(expect, c.strip) {
+			return false
+		}
+	}
+	return c.run(expect)
 }
 
 func (c *Computer) combo(o int) int {
@@ -122,110 +128,86 @@ func (c *Computer) initialize() {
 	} 
 }
 
-// Observations:
-// 
-// * The value of A only changes with instruction 0.
-// * The input to instruction 0 is always 3. Combo(3) = 3 and thus
-//   the value of A only changes via: A/2³ = A/8
-//
-// * Once the value of A becomes 0, it stays at 0. We can assume A is non-zero 
-//   before, during and after the run of our program.
-//
-// * Before the value of A becomes 0, the behaviour of the
-//   pointer is deterministic and independent of the exact value of A.
-//
-// * An output is printed if and only if we run instruction '5'. This means,
-//   for an output string 0,3,5,4,3,0, we need to run instruction '5' exactly 6 times.
-//
-// * The instruction '5' always takes o = 4 as an argument. In other words, it always
-//   uses the value of A % 8 for printing.
-//
-//
-// 
-// Let us represent A[i] := the value of A at level i in the call stack.
-// We look for the value of A[0]. We know that
-// 
-//	A[6] = 0 mod 8
-//  A[5] = 3 mod 8
-//  A[4] = 4 mod 8
-//  A[3] = 5 mod 8
-//  A[2] = 3 mod 8
-//  A[1] = 0 mod 8
-//  A[0] = ?
-//
-// Finally, we have the equations for A where A is the original value:
-//
-// A / 8 = 0 mod 8
-// A / 8*8 = 3 mod 8
-// A / 8*8*8 = 5 mod 8
-// A / 8*8*8*8  = 4 mod 8
-// A / 8*8*8*8*8 = 3 mod 8 
-// A / 8*8*8*8*8*8 = 0 mod 8 = A / 36*36*36 = 0 mod 8
-//
-//
-// Now, if A < 8*36*36, the value of A would quickly become 0. 
-// We can assume 8*36*36 < A < 36*36*36*36 (394149888 possibilities)
-// 
-// By multiplying through these equations we also get
-// 
-// A / 12 = 0 mod 8
-// A / 144 = 3 mod 8
-// A / 12*144 = 5 mod 8
-// A / 144*144 = 4 mod 8 -> A / 12*144 -> 48 mod 8 = 0 mod 8
-// A / 12*144*144 = 3 mod 8  -> A / 144*144 = 36 mod 8 = 4 mod 8 
-
-
-// New try
-// A / 144*144 = 4 mod 8 -> 144*4 = 576 
-// A / 144*144*12 -> bleh
-// A / 144*144*144*144 = 3 mod 8  -> A / 12*144*144 = 36 mod 8 = 4 mod 8 
-
+// 																										A VALID RANGE FOR A
+// ----------------------------------------------------------------------
 // A changes value only when (0,3) is called, and it always runs A = A / 8
 // We need to print value for A 16 times, changing it at least 14 times.
 // So we search from pow(8, 14)
+// Each pass through of the program updates the value in A exactly once,
+// prints exactly one output and moves the pointer to the beginning once.
+// 
+// The program halts when the value in A reaches 0. We need to print exactly 
+// 16 digits and halt thereafter. 
+//
+// The value in A after one pass through of the program is A/8. 
+// The value in A after two pass throughs is A/8*8
+// .
+// .
+// .
+// The value in A after 15 pass throughs is A/pow(8, 15)
+// The value in A after 16 pass throughs is A/pow(8, 16)
+// For this to become 0 we need A < pow(8,16).
+// Importantly, A cannot be 0 after only 15 pass throughs so A >= pow(8,15) 
+//
+// 																											RESTRICTIONS ON A
+// -----------------------------------------------------------------------
+// Some conditions can further restrict our available A values.
+// 
+// 2,4: assigns B = A%8
+// 1,5: assigns B = B xor 101
+// 7,5: C = A/pow(2,B)
+// 1,6: assigns B = B xor 6 
+// 4,2: assigns B = B xor C   
+// 5,5: prints B%8
+// 
+// In other words, we must have ((((A%8) xor 5) xor 6) xor A/2^B) %8 = 2
+// (A % 8) xor X % 8 = 2
+// this means the last 3 bytes are 010, which means we can have
+// 
+// xor 110 x 101 = 0
+// 
+// xor 5 xor 6 = 101 xor 110 = 010
+// 
+// This means the last 3 bits of ((((A%8) xor 5) xor 6) xor A/2^(A%8 xor 5 xor 6)) must be 010.
+
+// Then
+// 010 xor 110 = 100
+// then
+// 100 xor 101 = 001
+// 
+// So we must have A % 8 == 1 
+// Then, we must have 
+// 
+// lets see
+// 000 xor 101 = 101 = 5 mod 8
+// 001 xor 101 = 100 = 4 mod 8
+// 010 xor 101 = 111 = 7 mod 8
+// 100 xor 101 = 001 = 1 mod 8
+// 101 xor 101 = 000 = 0 mod 8
+// 110 xor 101 = 011 = 3 mod 8
+// 111 xor 101 = 010 = 2 mod 8   <- A%8 must therefore be 7
 func simulate() {
 	found := false
 	fmt.Printf("Entering loop\n")
-	for a := util.Pow(8,15); a < util.Pow(8,15)+36*36*36*36; a++ {
-		//fmt.Printf("a=%d\n", a)
-		// Only consider values of a that satisfy our criteria
-		if true {
-		//	(a / 8*36*36) % 8 == 3 &&
-		//(a / 36*36) % 8 == 4 &&
-		//(a / 36*8) % 8 == 5 &&
-		//(a / 36) % 8 == 3 &&
-		//(a / 8) % 8 == 0 {
-				c := &Computer{a, 0, 0, []int{2,4,1,5,7,5,1,6,4,2,5,5,0,3,3,0}, 0, "", nil}
-				c.initialize()
-				c.run()
+	i := 0
+	a := util.Pow(8,15)+7+8*i
+	for ; a < util.Pow(8,16); i++ {
+		a = util.Pow(8,15)+6+8*i
+		c := &Computer{a, 0, 0, []int{2,4,1,5,7,5,1,6,4,2,5,5,0,3,3,0}, 0, "", nil}
+		c.initialize()
+		expect := "2,4,1,5,7,5,1,6,4,2,5,5,0,3,3,0,"
 
-				if c.strip == "2,4,1,5,7,5,1,6,4,2,5,5,0,3,3,0," {
-			 		fmt.Printf("Found one such a")
-					fmt.Printf("A = %d\n", a)
-					found = true
-					break
-				}
-			}
+		halted := c.run(expect)
+		if halted {
+			fmt.Printf("Found one such a")
+			fmt.Printf("A = %d\n", a)
+			found = true
+			break
+		}
+		fmt.Printf("%d/%d - %s\n", a-util.Pow(8,15), util.Pow(8,16)-util.Pow(8,15), c.strip)
 	}
 
 	if found {
 		fmt.Printf("We finished")
 	}
 }
-//
-// 3 mod 8 x 12 = 36 mod 8 = 4 mod 8
-// 4 mod 8 x 12 = 48 mod 8 = 0 mod 8
-// 0 mod 8 x 12 = 96 mod 8 = 0 mod 8  
-
-// 
-// 
-//
-// We will create reverse instructions to find the value of A:
-// 
-// program: 0,3,5,4,3,0 
-//              ^
-// strip: 0,3,5,4,3,0 
-// 
-// Note that the input o   
-// 
-// 
